@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser'
+import connectDB from './utils/db';
+
+// import routes
+import userRoutes from './route/user.route';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -17,10 +21,14 @@ app.use(
 );
 app.use(cookieParser())
 
+connectDB();
+
 app.get('/', (_req, res) => {
-    res.send('Hello from Express + TypeScript + pnpm!');
+    res.send('Welcome to BookBazar API');
 });
 
+app.use('/api/v1/user', userRoutes);
+
 app.listen(PORT, () => {
-    console.log(`Server is running on the port http://localhost:${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}`);
 });
