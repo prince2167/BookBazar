@@ -243,4 +243,117 @@ const getProfile = async (req: Request, res: Response) => {
     }
 }
 
-export { registerUser, verifyUser, generateApiKey, login, getProfile }
+const forgotPassword = async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({
+            success: false,
+            message: "Email is required"
+        });
+    }
+
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        const token = jwt.sign(
+            { id: user._id, email: user.email },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '15m' }
+        );
+
+        user.passwordResetToken = token;
+        user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
+        await user.save();
+
+        // Create transporter
+        const transporter = nodemailer.createTransport({
+            host: process.env.MAILTRAP_HOST,
+            port: Number(process.env.MAILTRAP_PORT),
+            secure: false,
+            auth: {
+                user: process.env.MAILTRAP_USERNAME,
+                pass: process.env.MAILTRAP_PASSWORD,
+            },
+        } as TransportOptions);
+
+        // Email options
+        const mailOptions = {
+            from: process.env.MAILTRAP_SENDER_EMAIL,
+            to: user.email,
+            subject: 'Reset Password',
+            text: `Please click the following link to reset your password: ${process.env.BASE_URL}/api/v1/user/reset-password/${token}`,
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Password reset email sent successfully'
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error
+        });
+    }
+};
+
+const resetPassword = async (req: Request, res: Response) => {
+
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!token || !password) {
+        return res.status(400).json({
+            success: false,
+            message: "Token and password are required"
+        });
+    }
+
+    try {
+        const user = await User.findOne({ passwordResetToken: token });
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid token"
+            });
+        }
+
+        if (user.passwordResetExpires && user.passwordResetExpires < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: "Token has expired"
+            });
+        }
+
+        user.password = password;
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Password reset successful"
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error
+        });
+    }
+}
+
+
+export { registerUser, verifyUser, generateApiKey, login, getProfile, forgotPassword, resetPassword }
