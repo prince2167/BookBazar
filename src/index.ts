@@ -5,6 +5,7 @@ import connectDB from './utils/db';
 
 // import routes
 import userRoutes from './route/user.route';
+import bookRoutes from './route/book.route';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -28,6 +29,7 @@ app.get('/', (_req, res) => {
 });
 
 app.use('/api/v1/user', userRoutes);
+app.use('/api/v1/book', bookRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
